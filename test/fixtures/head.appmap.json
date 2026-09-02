@@ -1,0 +1,13 @@
+{
+  "version": "1.12",
+  "metadata": { "name": "demo_flow" },
+  "classMap": [],
+  "events": [
+    { "id": 1, "event": "call", "http_server_request": { "request_method": "GET", "normalized_path_info": "/api/thing" } },
+    { "id": 2, "event": "call", "defined_class": "org.demo.AuthFilter", "method_id": "handle" },
+    { "id": 3, "event": "call", "defined_class": "org.demo.Verifier", "method_id": "verify" },
+    { "id": 4, "event": "return", "parent_id": 3, "exceptions": [ { "class": "org.demo.SignatureException", "message": "bad sig" } ] },
+    { "id": 5, "event": "return", "parent_id": 2, "exceptions": [ { "class": "org.demo.HaltException", "message": "403" } ] },
+    { "id": 6, "event": "return", "parent_id": 1, "http_server_response": { "status": 403 } }
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "name": "appmap-visualizations",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Before/after Mermaid picture of the code area an AppMap behavioral diff breaks.",
+  "type": "module",
+  "bin": {
+    "appmap-diff-mermaid": "bin/appmap-diff-mermaid.mjs"
+  },
+  "scripts": {
+    "test": "node test/run.mjs"
+  },
+  "license": "MIT"
+}
