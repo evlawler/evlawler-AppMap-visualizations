@@ -1,90 +1,63 @@
 ---
-name: appmap-diff-diagram
+name: appmap-visualizations
 description: >
-  Turn an AppMap behavioral diff into a before/after Mermaid picture of the code
-  area a change breaks. Use when a change flips a request's outcome (e.g. 200 → 403,
-  a query disappears, a function starts throwing) and you want to SEE the path the
-  old code took and the path the new code takes, side by side, with the breaking
-  step highlighted. Input is two recordings of the same flow — base and head
-  `.appmap.json` — and the output is Markdown with two ```mermaid sequence diagrams.
+  Turn AppMap recordings into pictures a reviewer can read, in plain language, with
+  every class and call explained. Two views: behavior-diff, for when an existing
+  flow changed (before/after); and explain-trace, for a newly blessed gold trace (a
+  new feature), written so a non-developer — product, security, compliance, an
+  owner — can understand it. Use when someone needs to SEE what a change did, or
+  what a new feature does, without reading the code.
 ---
 
-# AppMap diff diagram
+# AppMap visualizations
 
-This skill answers one question visually: **when a change breaks a flow, what did the
-code do before, what does it do now, and exactly where does it diverge?**
+A small set of tools that turn AppMap recordings into reviewer-ready pictures. They
+draw facts from the recordings. They do not judge whether a change is good or bad —
+that stays with `appmap-review` and the people reviewing.
 
-It reads the `.appmap.json` event tree directly, so it works on any project that
-records AppMaps — no AppMap CLI, no puppeteer, no network. The picture is Mermaid, so
-it renders in GitHub, in most Markdown viewers, and pastes straight into a deck.
+## The two views
 
-## When to use it
+- **`behavior-diff/`** — an existing flow **changed**. Give it two recordings of the
+  same test (before and after) and it shows what moved: a before/after pair of
+  diagrams, or a single diff diagram, or a terminal list. Use it in a pull request
+  or CI (it exits non-zero when behavior changed).
 
-- A gold-trace compare (or a CI recording) reports a changed trace and you want the
-  human-readable picture of the change, not just a status line.
-- You are reviewing a PR and a request's outcome moved (status flip, a downstream
-  call or SQL query that no longer runs, a new exception on the path).
-- You are workshopping "what broke" with a team and need a before/after they can read
-  in five seconds.
+- **`explain-trace/`** — a **new** blessed gold trace (a new feature, no "before").
+  Give it one recording and it explains, in plain language, what the feature does
+  step by step and what it touches (login checks, personal data, the database,
+  outside services). Written for people who are not developers.
 
-## Inputs — two recordings of the *same* flow
+Both take AppMap **sequence exports** — the JSON from
+`appmap sequence-diagram <recording> --format json`.
 
-You need the same test/flow recorded twice:
+## The rules these tools follow (and you should too when using them)
 
-- **base** — the recording on the code before the change (the known-good baseline).
-- **head** — the recording on the code after the change.
+1. **Plain language. No jargon, no AI-speak.** Say what a thing does in the words a
+   reviewer uses. "Checks your login," not "authenticates the principal."
+2. **Explain every part.** If a reviewer might not know what a class or a call is,
+   explain it in one plain sentence. The tools print a list of every part shown and
+   leave a blank for that sentence — fill each one from the source. If you can't say
+   what something does from the code, say that; do not guess.
+3. **Two audiences, two treatments.** The terminal (ASCII) output is for developers:
+   keep it terse, add a code link (`path:line`) instead of a long explanation. The
+   diagrams are for everyone, including non-developers: translate technical labels
+   into plain phrases, and flag anything sensitive.
+4. **Reason from structure and labels, never from a value.** Recorded values are
+   sanitized tokens, so the output is safe to paste into a public PR.
+5. **Same recording setup on both sides of a diff** (SQL capture on, labels
+   applied), or the diff shows recording drift instead of real change.
 
-Get them however your project already records AppMaps:
+## Where each tool documents itself
 
-- **Gold traces:** the committed baseline is your `base`; re-record the same flow on
-  the branch to get `head`.
-- **`appmap archive` + compare:** extract the two archives and take the matching
-  `<flow>.appmap.json` from each (`base` archive and `head` archive).
-- **Ad hoc:** run the same integration test on each revision with the AppMap agent on,
-  and take the two `.appmap.json` files it writes.
+- `behavior-diff/SKILL.md` and `behavior-diff/README.md`
+- `explain-trace/SKILL.md` and `explain-trace/README.md`
+- `bin/appmap-diff-mermaid.mjs` — a variant of behavior-diff that reads the raw
+  `.appmap.json` recording directly (no sequence-export step) and surfaces web
+  facts (HTTP status flips, dropped SQL, exceptions); see the root `README.md`.
 
-The two files must be the **same flow** — same request, same test. Diffing two
-different flows produces a misleading picture.
+## For the AppMap team
 
-## Run it
-
-```bash
-node bin/appmap-diff-mermaid.mjs <base.appmap.json> <head.appmap.json> \
-  --name "<flow name>" \
-  --title "<one-line description of the change>" \
-  --out diff.md
-```
-
-- Writes a Markdown file with a **Before** diagram, an **After** diagram (the
-  divergence wrapped in a red block and annotated), and a **What changed** list.
-- **Exit code 1 when a break is detected, 0 when the flow is behaviorally identical** —
-  so you can gate CI on it (`node bin/appmap-diff-mermaid.mjs base head || echo "changed"`).
-
-## Read the picture — then judge
-
-The diagram shows you *that* the flow changed and *where*. Deciding whether the change
-is acceptable is the reviewer's job, and the picture is built to make that judgment
-possible:
-
-1. **Find the divergence** — the highlighted step in the After diagram is where the two
-   paths split. Everything below it in the Before diagram (the dropped steps in "What
-   changed") is code the new path never reaches.
-2. **Read the destination, not just the transition.** The After diagram ends on a
-   response (e.g. `⛔ 403`). Ask what that destination actually is for the user: a
-   usable outcome (a redirect to re-login, a graceful error) or a dead-end (a bare
-   `4xx` with no recovery). If the flow now lands on a path another recording already
-   witnesses, diagram *that* recording too and read its response.
-3. **If the destination's acceptability is a product or architecture decision** (e.g.
-   "is locking out every stale-token user acceptable, or should we redirect / run a
-   migration window?"), say so and route it to the owner. Don't bless the change just
-   because the picture is clear — a clear picture of a bad outcome is still a bad
-   outcome.
-
-## Notes
-
-- The diagram is scoped to the HTTP request transaction (test-runner frames are
-  dropped). For non-web AppMaps it falls back to the whole recording.
-- Participants are the classes on the path; messages are the calls, SQL queries
-  (summarized as `VERB table`), and the final response, in execution order.
-- A `💥 throws` note marks a function that raised on the head path; a `-x` arrow marks
-  the call that did not return normally.
+Handoff notes (native `diffMode` vs. two-side digests, the real Waltz palette, and
+folding web semantics into the sequence-export path) are in each tool's file header
+and README. The intended home is the `appmap-review` skill: the review reasons, these
+tools draw.

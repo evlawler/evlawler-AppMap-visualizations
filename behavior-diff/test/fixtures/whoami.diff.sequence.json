@@ -1,0 +1,16 @@
+{
+  "actors": [
+    { "id": "http", "name": "Client" },
+    { "id": "package:web", "name": "web" },
+    { "id": "database", "name": "Database" }
+  ],
+  "rootActions": [
+    { "nodeType": 4, "callee": "http", "route": "GET /api/user/whoami", "status": 403, "diffMode": 3, "formerName": "GET /api/user/whoami (200)", "digest": "R2", "subtreeDigest": "Rsub2",
+      "children": [
+        { "nodeType": 3, "callee": "package:web", "name": "verifyAndGetSubject", "diffMode": 3, "labels": ["security.authentication"],
+          "stableProperties": { "id": "web/JWTUtilities.verifyAndGetSubject", "raises_exception": true }, "digest": "v2", "subtreeDigest": "vsub2" },
+        { "nodeType": 6, "callee": "database", "name": "SELECT roles FROM person", "query": "SELECT roles FROM person WHERE user_name = ?", "diffMode": 2, "digest": "q1", "subtreeDigest": "qsub1" }
+      ]
+    }
+  ]
+}

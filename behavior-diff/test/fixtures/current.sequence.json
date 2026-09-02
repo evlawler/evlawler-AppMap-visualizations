@@ -1,19 +1,16 @@
 {
   "actors": [
-    { "id": "package:lib", "name": "lib" },
-    { "id": "package:_shared", "name": "_shared" }
+    { "id": "http", "name": "Client" },
+    { "id": "package:web", "name": "web" },
+    { "id": "database", "name": "Database" }
   ],
   "rootActions": [
-    {
-      "nodeType": "function", "callee": "package:lib", "name": "mergeScanIntoProfile",
-      "digest": "A-v2", "subtreeDigest": "Asub-v2",
-      "labels": ["security.authentication"],
+    { "nodeType": 4, "callee": "http", "route": "GET /api/user/whoami", "status": 403, "digest": "R2", "subtreeDigest": "Rsub2",
       "children": [
-        { "nodeType": "function", "callee": "package:_shared", "name": "isProtectedSource", "digest": "p", "subtreeDigest": "psub" },
-        { "nodeType": "function", "callee": "package:_shared", "name": "contradictionsFromWithheld", "digest": "c", "subtreeDigest": "csub" }
+        { "nodeType": 3, "callee": "package:web", "name": "verifyAndGetSubject", "labels": ["security.authentication"],
+          "stableProperties": { "id": "web/JWTUtilities.verifyAndGetSubject", "raises_exception": true },
+          "returnValue": { "raisesException": true }, "digest": "v2", "subtreeDigest": "vsub2" }
       ]
-    },
-    { "nodeType": "function", "callee": "package:lib", "name": "renderHeader", "digest": "h1", "subtreeDigest": "h1sub" },
-    { "nodeType": "function", "callee": "package:lib", "name": "renderFooter", "digest": "h2", "subtreeDigest": "h2sub" }
+    }
   ]
 }
