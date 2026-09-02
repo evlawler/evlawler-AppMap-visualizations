@@ -1,0 +1,19 @@
+{
+  "actors": [
+    { "id": "package:lib", "name": "lib" },
+    { "id": "package:_shared", "name": "_shared" }
+  ],
+  "rootActions": [
+    {
+      "nodeType": "function", "callee": "package:lib", "name": "mergeScanIntoProfile",
+      "digest": "A-v1", "subtreeDigest": "Asub-v1",
+      "labels": ["security.authentication"],
+      "children": [
+        { "nodeType": "function", "callee": "package:_shared", "name": "isProtectedSource", "digest": "p", "subtreeDigest": "psub" },
+        { "nodeType": "function", "callee": "package:_shared", "name": "withheldEntry", "digest": "w", "subtreeDigest": "wsub" }
+      ]
+    },
+    { "nodeType": "function", "callee": "package:lib", "name": "renderHeader", "digest": "h1", "subtreeDigest": "h1sub" },
+    { "nodeType": "function", "callee": "package:lib", "name": "renderFooter", "digest": "h2", "subtreeDigest": "h2sub" }
+  ]
+}
