@@ -1,0 +1,261 @@
+<title>Auth Flip 200→403</title>
+<meta name="description" content="Before/after AppMap behavioral diagram of the JWT-secret change that silently breaks every authenticated request." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" />
+<style>
+  :root {
+    --ground: #eef1f4;
+    --surface: #ffffff;
+    --surface-2: #f7f9fb;
+    --ink: #161b22;
+    --ink-soft: #4a5563;
+    --ink-faint: #7d8794;
+    --border: #d9dfe6;
+    --border-strong: #c2cad4;
+    --accent: #3350c9;
+    --good: #157347;
+    --good-bg: #e4f2ea;
+    --break: #c22f2a;
+    --break-bg: #fbe6e5;
+    --canvas: #fbfcfe;   /* diagram canvas — stable in both themes by design */
+    --canvas-border: #dfe4ea;
+    --shadow: 0 1px 2px rgba(20,27,34,.06), 0 6px 20px rgba(20,27,34,.05);
+  }
+  :root:not([data-theme="light"]) {
+    @media (prefers-color-scheme: dark) {
+      --ground: #0e1218;
+      --surface: #161c24;
+      --surface-2: #1b222c;
+      --ink: #e7ebf0;
+      --ink-soft: #a9b3c0;
+      --ink-faint: #7c8794;
+      --border: #29313c;
+      --border-strong: #38424f;
+      --accent: #8ea2ff;
+      --good: #4cc38a;
+      --good-bg: #10241b;
+      --break: #f0736d;
+      --break-bg: #2a1414;
+      --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.35);
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground: #0e1218;
+    --surface: #161c24;
+    --surface-2: #1b222c;
+    --ink: #e7ebf0;
+    --ink-soft: #a9b3c0;
+    --ink-faint: #7c8794;
+    --border: #29313c;
+    --border-strong: #38424f;
+    --accent: #8ea2ff;
+    --good: #4cc38a;
+    --good-bg: #10241b;
+    --break: #f0736d;
+    --break-bg: #2a1414;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.35);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: "IBM Plex Sans", system-ui, sans-serif;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 40px 24px 56px; }
+
+  .eyebrow {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 12px; font-weight: 500;
+    letter-spacing: .14em; text-transform: uppercase;
+    color: var(--ink-faint);
+  }
+  h1 {
+    font-size: clamp(24px, 3.4vw, 34px);
+    font-weight: 700; line-height: 1.15; letter-spacing: -.015em;
+    text-wrap: balance;
+    margin: 10px 0 0;
+  }
+  .sub { color: var(--ink-soft); max-width: 68ch; margin: 12px 0 0; font-size: 15.5px; }
+  code, .mono { font-family: "IBM Plex Mono", monospace; }
+  .sub code { background: var(--surface-2); border: 1px solid var(--border); border-radius: 4px; padding: .05em .35em; font-size: .88em; }
+
+  .verdict {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px;
+    margin: 22px 0 4px;
+  }
+  .flip {
+    display: inline-flex; align-items: center; gap: 10px;
+    font-family: "IBM Plex Mono", monospace; font-weight: 600; font-size: 15px;
+  }
+  .chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 4px 10px; border-radius: 999px; font-size: 14px; font-weight: 600;
+    font-family: "IBM Plex Mono", monospace; line-height: 1;
+  }
+  .chip.good { color: var(--good); background: var(--good-bg); border: 1px solid color-mix(in srgb, var(--good) 30%, transparent); }
+  .chip.break { color: var(--break); background: var(--break-bg); border: 1px solid color-mix(in srgb, var(--break) 34%, transparent); }
+  .arrow { color: var(--ink-faint); font-weight: 500; }
+  .tag {
+    font-family: "IBM Plex Mono", monospace; font-size: 12.5px; color: var(--ink-soft);
+    border-left: 1px solid var(--border-strong); padding-left: 14px;
+  }
+  .tag b { color: var(--ink); font-weight: 600; }
+
+  .panels {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 18px;
+    margin-top: 26px;
+  }
+  @media (max-width: 780px) { .panels { grid-template-columns: 1fr; } }
+
+  .panel {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; box-shadow: var(--shadow); overflow: hidden;
+    display: flex; flex-direction: column;
+  }
+  .panel.after { border-color: color-mix(in srgb, var(--break) 40%, var(--border)); }
+  .panel-head {
+    display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
+    padding: 14px 16px; border-bottom: 1px solid var(--border);
+    background: var(--surface-2);
+  }
+  .panel-head .label {
+    font-family: "IBM Plex Mono", monospace; font-size: 12px; font-weight: 600;
+    letter-spacing: .12em; text-transform: uppercase;
+  }
+  .panel.before .label { color: var(--good); }
+  .panel.after .label { color: var(--break); }
+  .panel-head .status { font-family: "IBM Plex Mono", monospace; font-size: 13px; font-weight: 600; color: var(--ink-soft); }
+  .canvas {
+    background: var(--canvas); border-radius: 0; padding: 14px 12px 6px;
+    overflow-x: auto; flex: 1;
+  }
+  .canvas pre.mermaid {
+    margin: 0; background: transparent; min-height: 260px;
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  .changed { margin-top: 30px; }
+  .changed h2 {
+    font-size: 13px; font-family: "IBM Plex Mono", monospace; font-weight: 600;
+    letter-spacing: .12em; text-transform: uppercase; color: var(--ink-faint);
+    margin: 0 0 14px;
+  }
+  ul.delta { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 1px; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+  ul.delta li {
+    display: grid; grid-template-columns: 92px 1fr; gap: 14px; align-items: baseline;
+    padding: 13px 16px; background: var(--surface);
+  }
+  ul.delta li + li { border-top: 1px solid var(--border); }
+  .kind {
+    font-family: "IBM Plex Mono", monospace; font-size: 11px; font-weight: 600;
+    letter-spacing: .06em; text-transform: uppercase; padding-top: 1px;
+  }
+  .kind.flip { color: var(--break); }
+  .kind.throw { color: var(--break); }
+  .kind.gone { color: var(--ink-faint); }
+  .delta .body { font-size: 14.5px; color: var(--ink-soft); }
+  .delta .body code { background: var(--surface-2); border: 1px solid var(--border); border-radius: 4px; padding: .05em .35em; font-size: .9em; color: var(--ink); }
+  .delta .body b { color: var(--ink); font-weight: 600; }
+
+  footer {
+    margin-top: 30px; padding-top: 18px; border-top: 1px solid var(--border);
+    color: var(--ink-faint); font-size: 13px; max-width: 74ch;
+  }
+  footer code { color: var(--ink-soft); }
+  footer .cmd {
+    display: block; margin-top: 10px; font-family: "IBM Plex Mono", monospace; font-size: 12.5px;
+    background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px;
+    padding: 10px 12px; color: var(--ink-soft); overflow-x: auto; white-space: pre;
+  }
+</style>
+
+<div class="wrap">
+  <div class="eyebrow">AppMap · behavioral diff</div>
+  <h1>Externalizing the JWT secret flips every authenticated request</h1>
+  <p class="sub">Two recordings of the same flow — <code>GET /api/user/whoami</code> — before and after the “fix” that moves the signing secret to config. The tests stay green. The behavior does not.</p>
+
+  <div class="verdict">
+    <span class="flip">
+      <span class="chip good">200 OK</span>
+      <span class="arrow">→</span>
+      <span class="chip break">403 Forbidden</span>
+    </span>
+    <span class="tag"><b>whoami_admin</b> · break detected · exit 1</span>
+  </div>
+
+  <div class="panels">
+    <section class="panel before">
+      <div class="panel-head">
+        <span class="label">Before</span>
+        <span class="status">200 · full auth path</span>
+      </div>
+      <div class="canvas">
+<pre class="mermaid">
+%%{init: {'theme':'base','themeVariables':{'fontFamily':'IBM Plex Mono, monospace','primaryColor':'#eaf3ee','primaryBorderColor':'#157347','primaryTextColor':'#14321f','lineColor':'#7d8794','actorBkg':'#ffffff','actorBorder':'#c2cad4','actorTextColor':'#161b22','signalColor':'#4a5563','signalTextColor':'#293949','noteBkgColor':'#eaf3ee','noteBorderColor':'#157347','noteTextColor':'#14321f','sequenceNumberColor':'#ffffff'}}}%%
+sequenceDiagram
+    autonumber
+    participant Client
+    participant App
+    participant Filter as JWTAuthenticationFilter
+    participant JWT as JWTUtilities
+    participant Endpoint as UserEndpoint
+    participant Dao as UserDao
+    participant DB as Database
+    Client->>App: GET /api/user/whoami
+    App->>Filter: handle
+    Filter->>JWT: verifyAndGetSubject
+    App->>Endpoint: handle
+    Endpoint->>Dao: findRolesByUserName
+    Dao->>DB: SELECT person
+    App-->>Client: 200 ✅
+</pre>
+      </div>
+    </section>
+
+    <section class="panel after">
+      <div class="panel-head">
+        <span class="label">After</span>
+        <span class="status">403 · halts at the filter</span>
+      </div>
+      <div class="canvas">
+<pre class="mermaid">
+%%{init: {'theme':'base','themeVariables':{'fontFamily':'IBM Plex Mono, monospace','primaryColor':'#fbe6e5','primaryBorderColor':'#c22f2a','primaryTextColor':'#3a0f0d','lineColor':'#7d8794','actorBkg':'#ffffff','actorBorder':'#c2cad4','actorTextColor':'#161b22','signalColor':'#4a5563','signalTextColor':'#293949','noteBkgColor':'#fbe6e5','noteBorderColor':'#c22f2a','noteTextColor':'#3a0f0d','sequenceNumberColor':'#ffffff'}}}%%
+sequenceDiagram
+    autonumber
+    participant Client
+    participant App
+    participant Filter as JWTAuthenticationFilter
+    participant JWT as JWTUtilities
+    Client->>App: GET /api/user/whoami
+    rect rgb(251, 230, 229)
+    App-xFilter: handle
+    Note over Filter: 💥 HaltException
+    Note over Filter: ✗ 403 — path stops here
+    end
+    Filter-xJWT: verifyAndGetSubject
+    Note over JWT: 💥 SignatureVerificationException
+    App-->>Client: 403 ⛔
+</pre>
+      </div>
+    </section>
+  </div>
+
+  <div class="changed">
+    <h2>What changed</h2>
+    <ul class="delta">
+      <li><span class="kind flip">Status</span><span class="body"><b>200 → 403</b> on <code>GET /api/user/whoami</code> — for every already-issued token, under default config.</span></li>
+      <li><span class="kind throw">Throws</span><span class="body"><code>verifyAndGetSubject</code> now raises <code>SignatureVerificationException</code>; the filter converts it to a <code>HaltException</code> (403).</span></li>
+      <li><span class="kind gone">Not run</span><span class="body"><code>UserEndpoint.handle</code> never executes — the request is halted before routing.</span></li>
+      <li><span class="kind gone">Not run</span><span class="body"><code>UserDao.findRolesByUserName</code> → <code>SELECT … FROM person</code> is never reached. The database read simply disappears.</span></li>
+    </ul>
+  </div>
+
+  <footer>
+    Generated by <code>appmap-diff-mermaid</code> from two <code>.appmap.json</code> recordings of the same flow. In this sample the <b>after</b> is the genuine invalid-signature recording (<code>whoami_rejected_token</code>) — the exact 403 path the broken build routes every authenticated request onto; in a normal run you point it at the re-recording of <code>whoami_admin</code> on the patched branch.
+    <span class="cmd">node bin/appmap-diff-mermaid.mjs base.appmap.json head.appmap.json --name whoami_admin --out diff.md</span>
+  </footer>
+</div>
